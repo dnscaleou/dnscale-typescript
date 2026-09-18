@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tgz
+.env*
+coverage/
+/.npmrc
+*.pem
+*.key
+.DS_Store
+# Maintainer publication files stay local, outside the public SDK history.
+/RELEASING.md
+/.github/workflows/publish.yml

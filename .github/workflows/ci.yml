@@ -1,0 +1,27 @@
+name: TypeScript SDK CI
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run generate && git diff --exit-code -- src/schema.ts
+      - run: npm test
+      - run: npm pack
+      - name: Smoke test packaged module
+        run: |
+          sdk_tarball="$PWD/$(node -p 'require("./package.json").name.replace("@", "").replace("/", "-") + "-" + require("./package.json").version + ".tgz"')"
+          sdk_temp="$(mktemp -d)"
+          cd "$sdk_temp"
+          npm install "$sdk_tarball"
+          node --input-type=module -e 'import { DNScale } from "@dnscale/sdk"; new DNScale({apiKey:"package-test"})'

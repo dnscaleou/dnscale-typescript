@@ -1,0 +1,24 @@
+{
+  "name": "@dnscale/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the DNScale API",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "engines": { "node": ">=20.19.0" },
+  "author": "DNScale operations <ops@dnscale.eu>",
+  "license": "MIT",
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "generate": "openapi-typescript openapi.yaml -o src/schema.ts --default-non-nullable false",
+    "build": "tsc -p tsconfig.json",
+    "test:types": "tsc --strict --noEmit --module NodeNext --target ES2022 --skipLibCheck test/types.ts",
+    "test": "npm run build && npm run test:types && node --test test/*.test.mjs",
+    "prepack": "npm run build"
+  },
+  "dependencies": { "openapi-fetch": "0.17.0" },
+  "devDependencies": { "openapi-typescript": "7.13.0", "typescript": "5.9.3", "@types/node": "22.19.0" }
+}

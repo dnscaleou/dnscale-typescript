@@ -1,0 +1,3418 @@
+openapi: 3.0.3
+info:
+  title: DNScale API
+  version: 1.0.0
+  description: |
+    The DNScale public REST API manages DNS zones, records, DNSSEC, account
+    access, usage, billing, alerts, activity, and DNS Control inventory.
+
+    Customer context is derived from the API key. Do not put a customer ID in
+    zone, record, user, or billing URLs.
+
+    Send the API key as a Bearer token:
+
+    ```text
+    Authorization: Bearer <api-key>
+    ```
+
+    Operation-specific API-key scopes are recorded in `x-required-scopes`.
+  contact:
+    name: DNScale Support
+    url: https://dnscale.eu/support
+    email: support@dnscale.eu
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://dnscale.eu/terms-of-service
+servers:
+  - url: https://api.dnscale.eu/v1
+    description: Production
+  - url: https://api-sandbox.dnscale.eu/v1
+    description: Sandbox
+  - url: http://localhost:8080/v1
+    description: Local development
+security:
+  - BearerAuth: []
+tags:
+  - name: Health
+    description: Service availability and build information.
+  - name: Zones
+    description: Customer-scoped authoritative DNS zones.
+  - name: Records
+    description: DNS record values nested below zones.
+  - name: DNSSEC
+    description: DNSSEC status, cryptographic keys, and registrar DS records.
+  - name: Usage
+    description: DNS query usage for zones and customer accounts.
+  - name: Billing
+    description: Monthly billing calculations and invoices.
+  - name: Alerts
+    description: Customer-configured DNS traffic alert routes.
+  - name: Activity
+    description: Customer-scoped activity and audit logs.
+  - name: Users
+    description: Team members in the authenticated customer account.
+  - name: API Keys
+    description: Scoped API keys belonging to users.
+  - name: Invitations
+    description: Invitations to join the authenticated customer account.
+  - name: DNS Control
+    description: Read-only external provider inventory, snapshots, and drift review (public beta).
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Check API health
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /zones:
+    get:
+      tags: [Zones]
+      operationId: listZones
+      summary: List zones in the authenticated customer account
+      x-required-scopes: ["zones:read"]
+      parameters:
+        - $ref: '#/components/parameters/ZoneOffset'
+        - $ref: '#/components/parameters/ZoneLimit'
+      responses:
+        '200':
+          description: Zone page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZonesResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Zones]
+      operationId: createZone
+      summary: Create a zone
+      x-required-scopes: ["zones:read", "zones:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateZoneRequest'
+      responses:
+        '201':
+          description: Zone created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+    get:
+      tags: [Zones]
+      operationId: getZone
+      summary: Get a zone
+      x-required-scopes: ["zones:read"]
+      responses:
+        '200':
+          description: Zone details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [Zones]
+      operationId: updateZone
+      summary: Replace mutable zone fields
+      x-required-scopes: ["zones:read", "zones:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateZoneRequest'
+      responses:
+        '200':
+          description: Zone updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Zones]
+      operationId: deleteZone
+      summary: Delete a zone and its records
+      x-required-scopes: ["zones:read", "zones:write"]
+      responses:
+        '204':
+          description: Zone deleted; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/records:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+    get:
+      tags: [Records]
+      operationId: listRecords
+      summary: List records in a zone
+      x-required-scopes: ["zones:read", "records:read"]
+      parameters:
+        - $ref: '#/components/parameters/RecordOffset'
+        - $ref: '#/components/parameters/RecordLimit'
+      responses:
+        '200':
+          description: Record page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordsResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Records]
+      operationId: createRecord
+      summary: Create a DNS record value
+      x-required-scopes: ["zones:read", "records:read", "records:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRecordRequest'
+      responses:
+        '201':
+          description: Record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/records/{record_id}:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+      - $ref: '#/components/parameters/RecordId'
+    get:
+      tags: [Records]
+      operationId: getRecord
+      summary: Get a record by its content-derived ID
+      x-required-scopes: ["zones:read", "records:read"]
+      responses:
+        '200':
+          description: Record details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [Records]
+      operationId: updateRecord
+      summary: Replace a record by its content-derived ID
+      description: The request name and type must match the record ID. A changed value produces a new record ID.
+      x-required-scopes: ["zones:read", "records:read", "records:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRecordRequest'
+      responses:
+        '200':
+          description: Updated record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Records]
+      operationId: deleteRecord
+      summary: Delete a record by its content-derived ID
+      x-required-scopes: ["zones:read", "records:read", "records:write"]
+      responses:
+        '204':
+          description: Record deleted; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/records/by-name/{record_name}/{record_type}:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+      - $ref: '#/components/parameters/RecordName'
+      - $ref: '#/components/parameters/RecordType'
+    put:
+      tags: [Records]
+      operationId: updateRecordByNameAndType
+      summary: Update a record without tracking its content-derived ID
+      description: "For a multi-value RRset, pass the old value in `content` to select one record."
+      x-required-scopes: ["zones:read", "records:read", "records:write"]
+      parameters:
+        - $ref: '#/components/parameters/RecordContent'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRecordByNameRequest'
+      responses:
+        '200':
+          description: Updated record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Records]
+      operationId: deleteRecordsByNameAndType
+      summary: Delete matching record values
+      description: "Omit `content` to delete the entire RRset, or supply it to delete one value."
+      x-required-scopes: ["zones:read", "records:read", "records:write"]
+      parameters:
+        - $ref: '#/components/parameters/RecordContent'
+      responses:
+        '204':
+          description: Matching records deleted; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/dnssec/status:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+    get:
+      tags: [DNSSEC]
+      operationId: getDNSSECStatus
+      summary: Get DNSSEC status for a zone
+      x-required-scopes: ["zones:read", "dnssec:read"]
+      responses:
+        '200':
+          description: DNSSEC status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSSECStatusResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [DNSSEC]
+      operationId: setDNSSECStatus
+      summary: Enable or disable DNSSEC
+      x-required-scopes: ["zones:read", "dnssec:read", "dnssec:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDNSSECRequest'
+      responses:
+        '204':
+          description: DNSSEC status updated; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/dnssec/cryptokeys:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+    get:
+      tags: [DNSSEC]
+      operationId: listDNSSECCryptokeys
+      summary: List DNSSEC cryptographic keys
+      x-required-scopes: ["zones:read", "dnssec:read"]
+      responses:
+        '200':
+          description: Cryptographic keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptokeysResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [DNSSEC]
+      operationId: createDNSSECCryptokey
+      summary: Create a DNSSEC cryptographic key
+      x-required-scopes: ["zones:read", "dnssec:read", "dnssec:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCryptokeyRequest'
+      responses:
+        '201':
+          description: Cryptographic key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptokeyResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/dnssec/cryptokeys/{key_id}:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+      - $ref: '#/components/parameters/CryptokeyId'
+    get:
+      tags: [DNSSEC]
+      operationId: getDNSSECCryptokey
+      summary: Get a DNSSEC cryptographic key
+      x-required-scopes: ["zones:read", "dnssec:read"]
+      responses:
+        '200':
+          description: Cryptographic key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptokeyResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [DNSSEC]
+      operationId: updateDNSSECCryptokey
+      summary: Activate, deactivate, publish, or unpublish a DNSSEC key
+      x-required-scopes: ["zones:read", "dnssec:read", "dnssec:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCryptokeyRequest'
+      responses:
+        '204':
+          description: Cryptographic key updated; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [DNSSEC]
+      operationId: deleteDNSSECCryptokey
+      summary: Delete a DNSSEC cryptographic key
+      x-required-scopes: ["zones:read", "dnssec:read", "dnssec:write"]
+      responses:
+        '204':
+          description: Cryptographic key deleted; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/dnssec/ds:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+    get:
+      tags: [DNSSEC]
+      operationId: listDNSSECDSRecords
+      summary: List DS records to publish at the registrar
+      x-required-scopes: ["zones:read", "dnssec:read"]
+      responses:
+        '200':
+          description: DS records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DSRecordsResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /zones/{zone_id}/usage:
+    parameters:
+      - $ref: '#/components/parameters/ZoneId'
+    get:
+      tags: [Usage]
+      operationId: getZoneUsage
+      summary: Get daily usage for a zone
+      x-required-scopes: ["zones:read", "usage:read"]
+      parameters:
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+      responses:
+        '200':
+          description: Zone usage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZoneUsageResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /usage/summary:
+    get:
+      tags: [Usage]
+      operationId: getUsageSummary
+      summary: Get customer usage for a billing month
+      x-required-scopes: ["usage:read"]
+      parameters:
+        - $ref: '#/components/parameters/Month'
+      responses:
+        '200':
+          description: Customer usage summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerUsageResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /usage/current:
+    get:
+      tags: [Usage]
+      operationId: getCurrentUsage
+      summary: Get usage for the current billing month
+      x-required-scopes: ["usage:read"]
+      responses:
+        '200':
+          description: Current customer usage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerUsageResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /usage/top-zones:
+    get:
+      tags: [Usage]
+      operationId: listTopZonesByUsage
+      summary: List zones with the highest query volume
+      x-required-scopes: ["usage:read"]
+      parameters:
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Top zones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopZonesResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /usage/daily:
+    get:
+      tags: [Usage]
+      operationId: getDailyUsage
+      summary: Get daily usage aggregated across accessible zones
+      x-required-scopes: ["usage:read"]
+      parameters:
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - name: zone_id
+          in: query
+          description: Optionally restrict the aggregation to one accessible zone.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Aggregated daily usage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregatedUsageResponseEnvelope'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /billing/summary:
+    get:
+      tags: [Billing]
+      operationId: getBillingSummary
+      summary: Get billing calculations for a month
+      x-required-scopes: ["billing:read"]
+      parameters:
+        - $ref: '#/components/parameters/Month'
+      responses:
+        '200':
+          description: Billing summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingSummaryResponseEnvelope'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /billing/history:
+    get:
+      tags: [Billing]
+      operationId: getBillingHistory
+      summary: List monthly billing records
+      x-required-scopes: ["billing:read"]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 12
+      responses:
+        '200':
+          description: Billing history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingHistoryResponseEnvelope'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /billing/invoices:
+    get:
+      tags: [Billing]
+      operationId: listInvoices
+      summary: List Stripe invoice records and hosted invoice links
+      x-required-scopes: ["billing:read"]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Invoice records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoicesResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /alerts:
+    get:
+      tags: [Alerts]
+      operationId: listAlerts
+      summary: List DNS traffic alert routes
+      x-required-scopes: ["alerts:read"]
+      parameters:
+        - name: scope_type
+          in: query
+          schema:
+            $ref: '#/components/schemas/AlertScopeType'
+        - name: scope_id
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Offset'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Alert routes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertsResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Alerts]
+      operationId: createAlert
+      summary: Create a DNS traffic alert route
+      x-required-scopes: ["alerts:read", "alerts:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+      responses:
+        '201':
+          description: Alert created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /alerts/{alert_id}:
+    parameters:
+      - $ref: '#/components/parameters/AlertId'
+    get:
+      tags: [Alerts]
+      operationId: getAlert
+      summary: Get a DNS traffic alert route
+      x-required-scopes: ["alerts:read"]
+      responses:
+        '200':
+          description: Alert route
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    patch:
+      tags: [Alerts]
+      operationId: updateAlert
+      summary: Update selected fields of an alert route
+      x-required-scopes: ["alerts:read", "alerts:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertRequest'
+      responses:
+        '200':
+          description: Alert updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Alerts]
+      operationId: deleteAlert
+      summary: Delete an alert route
+      x-required-scopes: ["alerts:read", "alerts:write"]
+      responses:
+        '204':
+          description: Alert deleted; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /activity:
+    get:
+      tags: [Activity]
+      operationId: listActivity
+      summary: List customer activity and audit entries
+      x-required-scopes: ["activity:read"]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: resource
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: start_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_time
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Activity entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: List users in the authenticated customer account
+      x-required-scopes: ["users:read"]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Create a user
+      x-required-scopes: ["users:read", "users:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /users/{user_id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      operationId: getUser
+      summary: Get a user
+      x-required-scopes: ["users:read"]
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    put:
+      tags: [Users]
+      operationId: updateUser
+      summary: Replace mutable user fields
+      x-required-scopes: ["users:read", "users:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Users]
+      operationId: deleteUser
+      summary: Delete a user and revoke their API keys
+      x-required-scopes: ["users:read", "users:write"]
+      responses:
+        '204':
+          description: User deleted; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /users/{user_id}/apikeys:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [API Keys]
+      operationId: listAPIKeys
+      summary: List API keys for a user
+      x-required-scopes: ["users:read", "apikeys:read"]
+      responses:
+        '200':
+          description: API keys; secret values are never returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeysResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [API Keys]
+      operationId: createAPIKey
+      summary: Create an API key for a user
+      description: |
+        The secret key is returned only in this response. Use `zone_scopes` to
+        restrict a key to zones and, optionally, exact DNS owner names within
+        each zone. `zone_ids` is retained for compatibility and grants all DNS
+        names in each listed zone. Do not send both fields with non-empty values.
+      x-required-scopes: ["users:read", "apikeys:read", "apikeys:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKeyRequest'
+      responses:
+        '201':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /users/{user_id}/apikeys/{key_id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/APIKeyId'
+    get:
+      tags: [API Keys]
+      operationId: getAPIKey
+      summary: Get API key metadata
+      x-required-scopes: ["users:read", "apikeys:read"]
+      responses:
+        '200':
+          description: API key metadata; the secret value is not returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [API Keys]
+      operationId: deleteAPIKey
+      summary: Revoke an API key
+      x-required-scopes: ["users:read", "apikeys:read", "apikeys:write"]
+      responses:
+        '204':
+          description: API key revoked; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /invitations-admin:
+    get:
+      tags: [Invitations]
+      operationId: listInvitations
+      summary: List account invitations
+      x-required-scopes: ["users:read"]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Invitations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationsResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [Invitations]
+      operationId: createInvitation
+      summary: Invite a user to the authenticated customer account
+      x-required-scopes: ["users:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationRequest'
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /invitations-admin/{invitation_id}:
+    parameters:
+      - $ref: '#/components/parameters/InvitationId'
+    get:
+      tags: [Invitations]
+      operationId: getInvitation
+      summary: Get an invitation
+      x-required-scopes: ["users:read"]
+      responses:
+        '200':
+          description: Invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      tags: [Invitations]
+      operationId: deleteInvitation
+      summary: Revoke an invitation
+      x-required-scopes: ["users:write"]
+      responses:
+        '204':
+          description: Invitation revoked; the response has no body
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-sources/providers:
+    get:
+      tags: [DNS Control]
+      operationId: listDNSControlProviders
+      summary: List supported external DNS provider adapters
+      x-required-scopes: ["zones:read"]
+      responses:
+        '200':
+          description: Provider catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlProvidersResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-sources/connections:
+    get:
+      tags: [DNS Control]
+      operationId: listDNSControlConnections
+      summary: List redacted external DNS provider connections
+      x-required-scopes: ["zones:read"]
+      responses:
+        '200':
+          description: Provider connections
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlConnectionsResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [DNS Control]
+      operationId: createDNSControlConnection
+      summary: Create and validate a read-only provider connection
+      x-required-scopes: ["zones:read", "zones:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDNSControlConnectionRequest'
+      responses:
+        '201':
+          description: Provider connection created; credentials are redacted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlConnectionResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-sources/connections/{connection_id}/zones:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+    get:
+      tags: [DNS Control]
+      operationId: listDNSControlConnectionZones
+      summary: List zones visible through a provider connection
+      x-required-scopes: ["zones:read"]
+      responses:
+        '200':
+          description: External provider zones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlProviderZonesResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-sources/connections/{connection_id}/zones/{external_zone_id}/inventory:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+      - $ref: '#/components/parameters/ExternalZoneId'
+    post:
+      tags: [DNS Control]
+      operationId: saveDNSControlZoneInventory
+      summary: Save an external zone as an inventory item
+      x-required-scopes: ["zones:read", "zones:write"]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DNSControlProviderZoneRequest'
+      responses:
+        '201':
+          description: Inventory item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlInventoryResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-sources/connections/{connection_id}/zones/{external_zone_id}/snapshots:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+      - $ref: '#/components/parameters/ExternalZoneId'
+    post:
+      tags: [DNS Control]
+      operationId: createDNSControlConnectionZoneSnapshot
+      summary: Capture a snapshot directly from an external provider zone
+      x-required-scopes: ["zones:read", "zones:write"]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DNSControlProviderZoneRequest'
+      responses:
+        '201':
+          description: Inventory and snapshot created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlConnectionSnapshotResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-inventory:
+    get:
+      tags: [DNS Control]
+      operationId: listDNSControlInventory
+      summary: List saved external DNS zone inventory
+      x-required-scopes: ["zones:read"]
+      responses:
+        '200':
+          description: Inventory items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlInventoryListResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-inventory/{inventory_id}/snapshots:
+    parameters:
+      - $ref: '#/components/parameters/InventoryId'
+    get:
+      tags: [DNS Control]
+      operationId: listDNSControlSnapshots
+      summary: List snapshots for an inventory item
+      x-required-scopes: ["zones:read"]
+      parameters:
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Snapshots
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlSnapshotsResponse'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags: [DNS Control]
+      operationId: createDNSControlInventorySnapshot
+      summary: Capture a new snapshot for an inventory item
+      x-required-scopes: ["zones:read", "zones:write"]
+      responses:
+        '201':
+          description: Snapshot created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlSnapshotResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-inventory/{inventory_id}/snapshots/{snapshot_id}:
+    parameters:
+      - $ref: '#/components/parameters/InventoryId'
+      - $ref: '#/components/parameters/SnapshotId'
+    get:
+      tags: [DNS Control]
+      operationId: getDNSControlSnapshot
+      summary: Get a snapshot and its normalized record sets
+      x-required-scopes: ["zones:read"]
+      responses:
+        '200':
+          description: Snapshot details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlSnapshotResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /dns-inventory/{inventory_id}/snapshots/{from_snapshot_id}/diff/{to_snapshot_id}:
+    parameters:
+      - $ref: '#/components/parameters/InventoryId'
+      - $ref: '#/components/parameters/FromSnapshotId'
+      - $ref: '#/components/parameters/ToSnapshotId'
+    get:
+      tags: [DNS Control]
+      operationId: diffDNSControlSnapshots
+      summary: Compare two immutable DNS state snapshots
+      x-required-scopes: ["zones:read"]
+      responses:
+        '200':
+          description: Snapshot diff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DNSControlSnapshotDiffResponse'
+        default:
+          $ref: '#/components/responses/Error'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+
+  parameters:
+    Offset:
+      name: offset
+      in: query
+      description: Number of items to skip.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of items to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    ZoneOffset:
+      name: offset
+      in: query
+      description: Number of zones to skip.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    ZoneLimit:
+      name: limit
+      in: query
+      description: Maximum number of zones to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    RecordOffset:
+      name: offset
+      in: query
+      description: Number of records to skip.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    RecordLimit:
+      name: limit
+      in: query
+      description: Maximum number of records to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 50
+    ZoneId:
+      name: zone_id
+      in: path
+      required: true
+      description: DNScale zone UUID.
+      schema:
+        type: string
+        format: uuid
+    RecordId:
+      name: record_id
+      in: path
+      required: true
+      description: Opaque, content-derived record identifier returned by DNScale.
+      schema:
+        type: string
+    RecordName:
+      name: record_name
+      in: path
+      required: true
+      description: DNS owner name. URL-encode special characters.
+      schema:
+        type: string
+    RecordType:
+      name: record_type
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RecordType'
+    RecordContent:
+      name: content
+      in: query
+      required: false
+      description: Existing record value used to disambiguate a multi-value RRset.
+      schema:
+        type: string
+    CryptokeyId:
+      name: key_id
+      in: path
+      required: true
+      description: PowerDNS cryptographic key identifier.
+      schema:
+        type: integer
+    Month:
+      name: month
+      in: query
+      description: Billing month in YYYY-MM format. Defaults to the current month.
+      schema:
+        type: string
+        pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+        example: '2026-08'
+    StartDate:
+      name: start_date
+      in: query
+      description: Inclusive start date in YYYY-MM-DD format. Defaults to 30 days ago.
+      schema:
+        type: string
+        format: date
+    EndDate:
+      name: end_date
+      in: query
+      description: Inclusive end date in YYYY-MM-DD format. Defaults to today.
+      schema:
+        type: string
+        format: date
+    AlertId:
+      name: alert_id
+      in: path
+      required: true
+      schema:
+        type: string
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    APIKeyId:
+      name: key_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InvitationId:
+      name: invitation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ConnectionId:
+      name: connection_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ExternalZoneId:
+      name: external_zone_id
+      in: path
+      required: true
+      description: Provider-assigned zone identifier. URL-encode special characters.
+      schema:
+        type: string
+    InventoryId:
+      name: inventory_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FromSnapshotId:
+      name: from_snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ToSnapshotId:
+      name: to_snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: INVALID_ZONE_ID
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: string
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [status, error]
+      properties:
+        status:
+          type: string
+          enum: [error]
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    Pagination:
+      type: object
+      additionalProperties: false
+      required: [total, offset, limit, count, has_more]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        count:
+          type: integer
+          minimum: 0
+        has_more:
+          type: boolean
+    OffsetMeta:
+      type: object
+      additionalProperties: false
+      required: [limit, offset]
+      properties:
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, timestamp, version]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+    HealthData:
+      type: object
+      additionalProperties: false
+      required: [health]
+      properties:
+        health:
+          $ref: '#/components/schemas/Health'
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/HealthData'
+
+    ZoneType:
+      type: string
+      enum: [master, slave]
+      description: "PowerDNS zone kind. `master` is the default for newly created zones."
+    ZoneRegion:
+      type: string
+      enum: [EU, GLOBAL, EU_GLOBAL]
+    ZoneStatus:
+      type: string
+      enum: [active, paused, pending, error]
+    ZoneSettingsBrief:
+      type: object
+      additionalProperties: false
+      required: [dnssec_enabled]
+      properties:
+        dnssec_enabled:
+          type: boolean
+    Zone:
+      type: object
+      additionalProperties: false
+      required: [id, customer_id, name, type, region, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: example.com
+        type:
+          $ref: '#/components/schemas/ZoneType'
+        region:
+          $ref: '#/components/schemas/ZoneRegion'
+        status:
+          $ref: '#/components/schemas/ZoneStatus'
+        settings:
+          $ref: '#/components/schemas/ZoneSettingsBrief'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateZoneRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: example.com
+        type:
+          $ref: '#/components/schemas/ZoneType'
+        region:
+          $ref: '#/components/schemas/ZoneRegion'
+        status:
+          $ref: '#/components/schemas/ZoneStatus'
+    UpdateZoneRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      description: "The current API requires `name`; omitted type, region, and status values retain their existing values."
+      properties:
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/ZoneType'
+        region:
+          $ref: '#/components/schemas/ZoneRegion'
+        status:
+          $ref: '#/components/schemas/ZoneStatus'
+    ZoneData:
+      type: object
+      additionalProperties: false
+      required: [zone]
+      properties:
+        zone:
+          $ref: '#/components/schemas/Zone'
+    ZoneResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/ZoneData'
+    ZonesData:
+      type: object
+      additionalProperties: false
+      required: [zones, pagination]
+      properties:
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/Zone'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    ZonesResponse:
+      type: object
+      description: "`zones` is also emitted as a deprecated top-level compatibility alias."
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/ZonesData'
+        zones:
+          type: array
+          deprecated: true
+          items:
+            $ref: '#/components/schemas/Zone'
+
+    RecordType:
+      type: string
+      enum: [A, AAAA, CAA, CNAME, HTTPS, MX, NAPTR, NS, PTR, SOA, SRV, SVCB, TLSA, TXT, ALIAS]
+    Record:
+      type: object
+      additionalProperties: false
+      required: [id, name, type, content, ttl, disabled]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: www.example.com.
+        type:
+          $ref: '#/components/schemas/RecordType'
+        content:
+          type: string
+          example: 192.0.2.1
+        ttl:
+          type: integer
+          minimum: 120
+          maximum: 86400
+        priority:
+          type: integer
+          nullable: true
+        disabled:
+          type: boolean
+        comment:
+          type: string
+          nullable: true
+          maxLength: 500
+    CreateRecordRequest:
+      type: object
+      additionalProperties: false
+      required: [name, type, content]
+      properties:
+        name:
+          type: string
+          description: "Relative owner name, `@` for the apex, or a fully qualified name."
+        type:
+          $ref: '#/components/schemas/RecordType'
+        content:
+          type: string
+        ttl:
+          type: integer
+          minimum: 120
+          maximum: 86400
+          default: 3600
+        priority:
+          type: integer
+          nullable: true
+        disabled:
+          type: boolean
+          default: false
+        comment:
+          type: string
+          nullable: true
+          maxLength: 500
+    UpdateRecordRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateRecordRequest'
+    UpdateRecordByNameRequest:
+      type: object
+      additionalProperties: false
+      required: [content]
+      properties:
+        content:
+          type: string
+        ttl:
+          type: integer
+          minimum: 120
+          maximum: 86400
+          default: 3600
+        priority:
+          type: integer
+          nullable: true
+        disabled:
+          type: boolean
+        comment:
+          type: string
+          nullable: true
+          maxLength: 500
+    RecordData:
+      type: object
+      additionalProperties: false
+      required: [record]
+      properties:
+        record:
+          $ref: '#/components/schemas/Record'
+    RecordResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/RecordData'
+    RecordsData:
+      type: object
+      additionalProperties: false
+      required: [records, pagination]
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/Record'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    RecordsResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/RecordsData'
+
+    SetDNSSECRequest:
+      type: object
+      additionalProperties: false
+      required: [enable]
+      properties:
+        enable:
+          type: boolean
+    DNSSECStatusData:
+      type: object
+      additionalProperties: false
+      required: [dnssec]
+      properties:
+        dnssec:
+          type: boolean
+    DNSSECStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSSECStatusData'
+    Cryptokey:
+      type: object
+      additionalProperties: false
+      required: [id, active, published, keytype, algorithm, bits, dnskey, ds, cds]
+      properties:
+        id:
+          type: integer
+        keytag:
+          type: integer
+        active:
+          type: boolean
+        published:
+          type: boolean
+        keytype:
+          type: string
+          enum: [ksk, zsk, csk]
+        algorithm:
+          type: string
+        bits:
+          type: integer
+        dnskey:
+          type: string
+        ds:
+          type: array
+          items:
+            type: string
+        cds:
+          type: array
+          items:
+            type: string
+        privatekey:
+          type: string
+          writeOnly: true
+    CreateCryptokeyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        active:
+          type: boolean
+        published:
+          type: boolean
+        keytype:
+          type: string
+          enum: [ksk, zsk, csk]
+        algorithm:
+          type: string
+        bits:
+          type: integer
+        content:
+          type: string
+        dnskey:
+          type: string
+        ds:
+          type: array
+          items:
+            type: string
+        cds:
+          type: array
+          items:
+            type: string
+        privatekey:
+          type: string
+          writeOnly: true
+    UpdateCryptokeyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        active:
+          type: boolean
+        published:
+          type: boolean
+    CryptokeyData:
+      type: object
+      additionalProperties: false
+      required: [cryptokey]
+      properties:
+        cryptokey:
+          $ref: '#/components/schemas/Cryptokey'
+    CryptokeyResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/CryptokeyData'
+    CryptokeysData:
+      type: object
+      additionalProperties: false
+      required: [cryptokeys]
+      properties:
+        cryptokeys:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cryptokey'
+    CryptokeysResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/CryptokeysData'
+    DSRecordsData:
+      type: object
+      additionalProperties: false
+      required: [ds_records]
+      properties:
+        ds_records:
+          type: array
+          items:
+            type: string
+    DSRecordsResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DSRecordsData'
+
+    UsageMap:
+      type: object
+      additionalProperties:
+        type: integer
+        format: int64
+    ZoneUsageDaily:
+      type: object
+      additionalProperties: false
+      required: [id, zone_name, customer_id, usage_date, total_queries, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        zone_id:
+          type: string
+          format: uuid
+          nullable: true
+        zone_name:
+          type: string
+        customer_id:
+          type: string
+          format: uuid
+        usage_date:
+          type: string
+          format: date-time
+        total_queries:
+          type: integer
+          format: int64
+        query_by_type:
+          $ref: '#/components/schemas/UsageMap'
+        query_by_rcode:
+          $ref: '#/components/schemas/UsageMap'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ZoneUsageSummary:
+      type: object
+      additionalProperties: false
+      required: [zone_name, total_queries, period_start, period_end]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+          nullable: true
+        zone_name:
+          type: string
+        total_queries:
+          type: integer
+          format: int64
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        daily_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneUsageDaily'
+    ZoneUsageResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/ZoneUsageSummary'
+    CustomerUsageSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - customer_id
+        - billing_month
+        - billing_type
+        - total_queries
+        - included_queries
+        - overage_queries
+        - overage_amount
+        - usage_percentage
+        - days_active
+        - days_in_month
+        - is_pro_rated
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        billing_month:
+          type: string
+          format: date-time
+        billing_type:
+          type: string
+          enum: [subscription, metered]
+        total_queries:
+          type: integer
+          format: int64
+        included_queries:
+          type: integer
+          format: int64
+        overage_queries:
+          type: integer
+          format: int64
+        overage_amount:
+          type: number
+          format: double
+        usage_percentage:
+          type: number
+          format: double
+        zone_breakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneUsageSummary'
+        days_active:
+          type: integer
+        days_in_month:
+          type: integer
+        is_pro_rated:
+          type: boolean
+        active_zones:
+          type: integer
+        zone_charges:
+          type: number
+          format: double
+        query_charges:
+          type: number
+          format: double
+        estimated_total:
+          type: number
+          format: double
+    CustomerUsageResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/CustomerUsageSummary'
+    TopZonesData:
+      type: object
+      additionalProperties: false
+      required: [zones]
+      properties:
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/ZoneUsageSummary'
+    TopZonesResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/TopZonesData'
+    AggregatedDailyStat:
+      type: object
+      additionalProperties: false
+      required: [date, total_queries]
+      properties:
+        date:
+          type: string
+          format: date-time
+        total_queries:
+          type: integer
+          format: int64
+        query_by_type:
+          $ref: '#/components/schemas/UsageMap'
+        query_by_rcode:
+          $ref: '#/components/schemas/UsageMap'
+    AggregatedUsageResponse:
+      type: object
+      additionalProperties: false
+      required: [period_start, period_end, total_queries, daily_stats, query_type_breakdown, rcode_breakdown]
+      properties:
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        total_queries:
+          type: integer
+          format: int64
+        daily_stats:
+          type: array
+          items:
+            $ref: '#/components/schemas/AggregatedDailyStat'
+        query_type_breakdown:
+          $ref: '#/components/schemas/UsageMap'
+        rcode_breakdown:
+          $ref: '#/components/schemas/UsageMap'
+    AggregatedUsageResponseEnvelope:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/AggregatedUsageResponse'
+    BillingSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - customer_id
+        - billing_month
+        - total_queries
+        - included_queries
+        - overage_queries
+        - overage_rate
+        - overage_amount
+        - usage_percentage
+        - is_pro_rated
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        billing_month:
+          type: string
+        total_queries:
+          type: integer
+          format: int64
+        included_queries:
+          type: integer
+          format: int64
+        overage_queries:
+          type: integer
+          format: int64
+        overage_rate:
+          type: number
+          format: double
+        overage_amount:
+          type: number
+          format: double
+        usage_percentage:
+          type: number
+          format: double
+        is_pro_rated:
+          type: boolean
+        days_active:
+          type: integer
+        days_in_month:
+          type: integer
+    BillingSummaryResponseEnvelope:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/BillingSummary'
+    BillingHistory:
+      type: object
+      additionalProperties: false
+      required: [records, total]
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillingSummary'
+        total:
+          type: integer
+    BillingHistoryResponseEnvelope:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/BillingHistory'
+    Invoice:
+      type: object
+      additionalProperties: false
+      required: [id, customer_id, stripe_invoice_id, amount_paid, amount_due, currency, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        subscription_id:
+          type: string
+          format: uuid
+          nullable: true
+        stripe_invoice_id:
+          type: string
+        amount_paid:
+          type: integer
+          format: int64
+          description: Minor currency units (for example, euro cents).
+        amount_due:
+          type: integer
+          format: int64
+          description: Minor currency units (for example, euro cents).
+        currency:
+          type: string
+        status:
+          type: string
+        invoice_url:
+          type: string
+          format: uri
+          nullable: true
+        invoice_pdf:
+          type: string
+          format: uri
+          nullable: true
+        period_start:
+          type: string
+          format: date-time
+          nullable: true
+        period_end:
+          type: string
+          format: date-time
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        billing_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    InvoicesData:
+      type: object
+      additionalProperties: false
+      required: [invoices, total]
+      properties:
+        invoices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invoice'
+        total:
+          type: integer
+    InvoicesResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/InvoicesData'
+
+    AlertScopeType:
+      type: string
+      enum: [account, zone]
+    AlertSeverity:
+      type: string
+      enum: [info, warning, critical]
+    AlertStatus:
+      type: string
+      enum: [enabled, disabled]
+    AlertThresholdConfig:
+      type: object
+      additionalProperties: false
+      properties:
+        qps_warning:
+          type: integer
+        qps_critical:
+          type: integer
+        nxdomain_ratio_warning:
+          type: number
+          format: double
+        nxdomain_ratio_critical:
+          type: number
+          format: double
+        servfail_ratio_warning:
+          type: number
+          format: double
+        servfail_ratio_critical:
+          type: number
+          format: double
+        query_drop_threshold:
+          type: number
+          format: double
+        refused_qps_warning:
+          type: integer
+        refused_qps_critical:
+          type: integer
+    AlertChannel:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [email, slack, webhook, pagerduty]
+        email_to:
+          type: array
+          items:
+            type: string
+            format: email
+        slack_url:
+          type: string
+          format: uri
+          nullable: true
+        webhook_url:
+          type: string
+          format: uri
+          nullable: true
+        pager_key:
+          type: string
+          nullable: true
+          writeOnly: true
+        enabled:
+          type: boolean
+          default: true
+    Alert:
+      type: object
+      additionalProperties: false
+      required: [id, scope_type, scope_id, thresholds, channels, actions, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        scope_type:
+          $ref: '#/components/schemas/AlertScopeType'
+        scope_id:
+          type: string
+        thresholds:
+          type: array
+          items:
+            type: integer
+        threshold_config:
+          $ref: '#/components/schemas/AlertThresholdConfig'
+        status:
+          $ref: '#/components/schemas/AlertStatus'
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+        cooldown_seconds:
+          type: integer
+        last_triggered_at:
+          type: string
+          format: date-time
+          nullable: true
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertChannel'
+        actions:
+          type: object
+          additionalProperties:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateAlertRequest:
+      type: object
+      additionalProperties: false
+      required: [scope_type, scope_id, thresholds, channels]
+      properties:
+        scope_type:
+          $ref: '#/components/schemas/AlertScopeType'
+        scope_id:
+          type: string
+        thresholds:
+          type: array
+          items:
+            type: integer
+        threshold_config:
+          $ref: '#/components/schemas/AlertThresholdConfig'
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertChannel'
+        actions:
+          type: object
+          additionalProperties:
+            type: string
+        status:
+          $ref: '#/components/schemas/AlertStatus'
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+        cooldown_seconds:
+          type: integer
+          minimum: 0
+    UpdateAlertRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        scope_type:
+          $ref: '#/components/schemas/AlertScopeType'
+        scope_id:
+          type: string
+        thresholds:
+          type: array
+          items:
+            type: integer
+        threshold_config:
+          $ref: '#/components/schemas/AlertThresholdConfig'
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertChannel'
+        actions:
+          type: object
+          additionalProperties:
+            type: string
+        status:
+          $ref: '#/components/schemas/AlertStatus'
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+        cooldown_seconds:
+          type: integer
+          minimum: 0
+    AlertData:
+      type: object
+      additionalProperties: false
+      required: [alert]
+      properties:
+        alert:
+          $ref: '#/components/schemas/Alert'
+    AlertResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/AlertData'
+    AlertsData:
+      type: object
+      additionalProperties: false
+      required: [alerts]
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+    AlertsResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/AlertsData'
+
+    ActivityItem:
+      type: object
+      additionalProperties: false
+      required: [id, action, resource, resource_id, ip_address, user_agent, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        resource:
+          type: string
+        resource_id:
+          type: string
+        old_values:
+          type: object
+          nullable: true
+          additionalProperties: true
+        new_values:
+          type: object
+          nullable: true
+          additionalProperties: true
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+          format: uuid
+          nullable: true
+        user_email:
+          type: string
+          format: email
+          nullable: true
+        user_name:
+          type: string
+          nullable: true
+    ActivityData:
+      type: object
+      additionalProperties: false
+      required: [items, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityItem'
+        meta:
+          $ref: '#/components/schemas/OffsetMeta'
+    ActivityResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/ActivityData'
+
+    UserRole:
+      type: string
+      enum: [admin, user]
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, customer_id, email, full_name, role, active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        zone_count:
+          type: integer
+          nullable: true
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
+          default: true
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      description: "The current API requires `email`; omitted role and active values retain their existing values."
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
+    UserData:
+      type: object
+      additionalProperties: false
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/UserData'
+    UsersData:
+      type: object
+      additionalProperties: false
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    UsersResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/UsersData'
+
+    APIKeyZoneScope:
+      type: object
+      additionalProperties: false
+      required: [zone_id, record_access, record_names]
+      properties:
+        zone_id:
+          type: string
+          format: uuid
+        record_access:
+          type: string
+          enum: [all, names]
+          description: Whole-zone or exact-name access.
+        record_names:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          description: |
+            Canonical relative owners. Use `@` for the apex. Names may
+            also be supplied as in-zone absolute names when creating a key and
+            are returned in canonical relative form. A literal `*` matches only
+            the wildcard owner; it is not a glob. Required and non-empty when
+            `record_access` is `names`; empty when it is `all`.
+          items:
+            type: string
+          example: [_acme-challenge, _acme-challenge.api]
+
+    APIKey:
+      type: object
+      additionalProperties: false
+      required: [id, customer_id, user_id, name, scopes, created_at, updated_at, zone_ids, zone_scopes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        key:
+          type: string
+          writeOnly: true
+          description: Secret API key. Present only in the create response.
+        scopes:
+          type: string
+          description: JSON-encoded scope-name array.
+          example: '["zones:read","records:read"]'
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        zone_ids:
+          type: array
+          description: Compatibility zone list. Empty means customer-wide.
+          items:
+            type: string
+            format: uuid
+        zone_scopes:
+          type: array
+          description: Per-zone resource policy. Empty means customer-wide.
+          items:
+            $ref: '#/components/schemas/APIKeyZoneScope'
+    CreateAPIKeyRequest:
+      type: object
+      additionalProperties: false
+      required: [name, scopes]
+      properties:
+        name:
+          type: string
+        scopes:
+          type: string
+          description: JSON-encoded array of scope names.
+          example: '["zones:read","zones:write","records:read","records:write"]'
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        zone_ids:
+          type: array
+          deprecated: true
+          description: |
+            Compatibility zone list.
+            Grants all DNS names in every listed zone.
+            Mutually exclusive with a non-empty `zone_scopes` value. Empty or
+            omitted together with `zone_scopes` creates a customer-wide key.
+          items:
+            type: string
+            format: uuid
+        zone_scopes:
+          type: array
+          description: |
+            Preferred per-zone resource policy.
+            Each zone can grant all DNS names or up to 100 exact owner names;
+            a key can contain at most 500 names total.
+            Mutually exclusive with a non-empty `zone_ids` value.
+          items:
+            $ref: '#/components/schemas/APIKeyZoneScope'
+    APIKeyData:
+      type: object
+      additionalProperties: false
+      required: [api_key]
+      properties:
+        api_key:
+          $ref: '#/components/schemas/APIKey'
+    APIKeyResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/APIKeyData'
+    APIKeysData:
+      type: object
+      additionalProperties: false
+      required: [api_keys]
+      properties:
+        api_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+    APIKeysResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/APIKeysData'
+
+    InvitationStatus:
+      type: string
+      enum: [pending, accepted, expired, revoked]
+    Invitation:
+      type: object
+      additionalProperties: false
+      required: [id, customer_id, email, invited_by, expires_at, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        invited_by:
+          type: string
+          description: UUID of the inviting user, or an empty string for legacy invitations.
+        token:
+          type: string
+          writeOnly: true
+          description: Present only in the create response.
+        expires_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/InvitationStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    InvitationData:
+      type: object
+      additionalProperties: false
+      required: [invitation]
+      properties:
+        invitation:
+          $ref: '#/components/schemas/Invitation'
+    InvitationResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/InvitationData'
+    InvitationsData:
+      type: object
+      additionalProperties: false
+      required: [invitations]
+      properties:
+        invitations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invitation'
+    InvitationsResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/InvitationsData'
+
+    ProviderCredentials:
+      type: object
+      additionalProperties: false
+      description: Credentials are accepted on create and are never returned.
+      properties:
+        api_key:
+          type: string
+          writeOnly: true
+        api_token:
+          type: string
+          writeOnly: true
+        access_key_id:
+          type: string
+          writeOnly: true
+        secret_access_key:
+          type: string
+          writeOnly: true
+        region:
+          type: string
+    DNSControlAuthField:
+      type: object
+      additionalProperties: false
+      required: [name, label, type, required]
+      properties:
+        name:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, password, select]
+        required:
+          type: boolean
+        placeholder:
+          type: string
+        help_text:
+          type: string
+    DNSControlProviderCapabilities:
+      type: object
+      additionalProperties: false
+      required:
+        - can_list_zones
+        - can_read_records
+        - can_write_records
+        - supports_comments
+        - supports_tags
+        - supports_proxied_records
+        - supports_alias_flattening
+        - supports_dnssec_status_read
+        - exposes_assigned_nameservers
+        - exposes_registrar_constraints
+        - live_secondary_without_delegation_change
+      properties:
+        can_list_zones:
+          type: boolean
+        can_read_records:
+          type: boolean
+        can_write_records:
+          type: boolean
+        supports_comments:
+          type: boolean
+        supports_tags:
+          type: boolean
+        supports_proxied_records:
+          type: boolean
+        supports_alias_flattening:
+          type: boolean
+        supports_dnssec_status_read:
+          type: boolean
+        exposes_assigned_nameservers:
+          type: boolean
+        exposes_registrar_constraints:
+          type: boolean
+        known_import_export_exclusions:
+          type: array
+          items:
+            type: string
+        live_secondary_without_delegation_change:
+          type: boolean
+    DNSControlProvider:
+      type: object
+      additionalProperties: false
+      required: [type, name, description, auth_type, auth_fields, docs_url, capabilities]
+      properties:
+        type:
+          type: string
+          enum: [cloudflare, route53]
+        name:
+          type: string
+        description:
+          type: string
+        auth_type:
+          type: string
+          enum: [api_key, api_token, access_keys, oauth]
+        auth_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlAuthField'
+        docs_url:
+          type: string
+          format: uri
+        capabilities:
+          $ref: '#/components/schemas/DNSControlProviderCapabilities'
+        warnings:
+          type: array
+          items:
+            type: string
+    DNSControlProviderZone:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        record_count:
+          type: integer
+        nameservers:
+          type: array
+          items:
+            type: string
+        dnssec:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+    CreateDNSControlConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [provider]
+      properties:
+        provider:
+          type: string
+          enum: [cloudflare, route53]
+        name:
+          type: string
+        mode:
+          type: string
+          enum: [read_only]
+          default: read_only
+        scopes:
+          type: array
+          items:
+            type: string
+        credentials:
+          $ref: '#/components/schemas/ProviderCredentials'
+        api_token:
+          type: string
+          writeOnly: true
+          deprecated: true
+        access_key_id:
+          type: string
+          writeOnly: true
+          deprecated: true
+        secret_access_key:
+          type: string
+          writeOnly: true
+          deprecated: true
+        region:
+          type: string
+          deprecated: true
+    DNSControlProviderZoneRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        zone_name:
+          type: string
+    DNSControlConnection:
+      type: object
+      additionalProperties: false
+      required: [id, provider, name, mode, scopes, status, capabilities, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        name:
+          type: string
+        mode:
+          type: string
+          enum: [read_only]
+        scopes:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [pending, verified, error, disabled]
+        capabilities:
+          $ref: '#/components/schemas/DNSControlProviderCapabilities'
+        last_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_successful_inventory_at:
+          type: string
+          format: date-time
+          nullable: true
+        disabled_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DNSControlInventory:
+      type: object
+      additionalProperties: false
+      required: [id, provider_zone_id, zone_name, status, nameservers, dnssec, delegation, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider_connection_id:
+          type: string
+          format: uuid
+          nullable: true
+        provider_zone_id:
+          type: string
+        zone_name:
+          type: string
+        status:
+          type: string
+        nameservers:
+          type: array
+          items:
+            type: string
+        dnssec:
+          type: object
+          additionalProperties: true
+        delegation:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DNSControlRecordSet:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - snapshot_id
+        - record_set_key
+        - owner_name
+        - rrtype
+        - dns_class
+        - routing_policy_key
+        - ttl
+        - values
+        - provider_metadata
+        - raw_refs
+        - portable_hash
+        - value_hash
+        - provider_hash
+        - unsupported
+        - warnings
+      properties:
+        id:
+          type: string
+          format: uuid
+        snapshot_id:
+          type: string
+          format: uuid
+        record_set_key:
+          type: string
+        owner_name:
+          type: string
+        rrtype:
+          type: string
+        dns_class:
+          type: string
+        routing_policy_key:
+          type: string
+        ttl:
+          type: integer
+        values:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        provider_metadata:
+          type: object
+          additionalProperties: true
+        raw_refs:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        portable_hash:
+          type: string
+        value_hash:
+          type: string
+        provider_hash:
+          type: string
+        unsupported:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+    DNSControlSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - zone_inventory_id
+        - captured_at
+        - source_kind
+        - source_version
+        - canonical_zone
+        - portable_hash
+        - provider_hash
+        - record_set_count
+      properties:
+        id:
+          type: string
+          format: uuid
+        zone_inventory_id:
+          type: string
+          format: uuid
+        captured_at:
+          type: string
+          format: date-time
+        source_kind:
+          type: string
+          enum: [provider_api]
+        source_version:
+          type: string
+        canonical_zone:
+          type: object
+          additionalProperties: true
+        portable_hash:
+          type: string
+        provider_hash:
+          type: string
+        record_set_count:
+          type: integer
+        record_sets:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlRecordSet'
+    DNSControlSnapshotDiffSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - added_record_sets
+        - removed_record_sets
+        - value_changed
+        - ttl_changed
+        - provider_metadata_changed
+        - unsupported_provider_features
+      properties:
+        added_record_sets:
+          type: integer
+        removed_record_sets:
+          type: integer
+        value_changed:
+          type: integer
+        ttl_changed:
+          type: integer
+        provider_metadata_changed:
+          type: integer
+        unsupported_provider_features:
+          type: integer
+    DNSControlSnapshotDiffChange:
+      type: object
+      additionalProperties: false
+      required: [type, record_set_key, owner_name, rrtype, severity]
+      properties:
+        type:
+          type: string
+          enum: [added_record_set, removed_record_set, value_changed, ttl_changed, provider_metadata_changed]
+        record_set_key:
+          type: string
+        owner_name:
+          type: string
+        rrtype:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        before:
+          type: object
+          additionalProperties: true
+        after:
+          type: object
+          additionalProperties: true
+        warnings:
+          type: array
+          items:
+            type: string
+    DNSControlSnapshotDiff:
+      type: object
+      additionalProperties: false
+      required: [from_snapshot_id, to_snapshot_id, summary, changes]
+      properties:
+        from_snapshot_id:
+          type: string
+          format: uuid
+        to_snapshot_id:
+          type: string
+          format: uuid
+        summary:
+          $ref: '#/components/schemas/DNSControlSnapshotDiffSummary'
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlSnapshotDiffChange'
+
+    DNSControlProvidersData:
+      type: object
+      additionalProperties: false
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlProvider'
+    DNSControlProvidersResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlProvidersData'
+    DNSControlConnectionData:
+      type: object
+      additionalProperties: false
+      required: [connection]
+      properties:
+        connection:
+          $ref: '#/components/schemas/DNSControlConnection'
+    DNSControlConnectionResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlConnectionData'
+    DNSControlConnectionsData:
+      type: object
+      additionalProperties: false
+      required: [connections]
+      properties:
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlConnection'
+    DNSControlConnectionsResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlConnectionsData'
+    DNSControlProviderZonesData:
+      type: object
+      additionalProperties: false
+      required: [zones]
+      properties:
+        zones:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlProviderZone'
+    DNSControlProviderZonesResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlProviderZonesData'
+    DNSControlInventoryData:
+      type: object
+      additionalProperties: false
+      required: [inventory]
+      properties:
+        inventory:
+          $ref: '#/components/schemas/DNSControlInventory'
+    DNSControlInventoryResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlInventoryData'
+    DNSControlInventoryListData:
+      type: object
+      additionalProperties: false
+      required: [inventory]
+      properties:
+        inventory:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlInventory'
+    DNSControlInventoryListResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlInventoryListData'
+    DNSControlSnapshotData:
+      type: object
+      additionalProperties: false
+      required: [snapshot]
+      properties:
+        snapshot:
+          $ref: '#/components/schemas/DNSControlSnapshot'
+    DNSControlSnapshotResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlSnapshotData'
+    DNSControlConnectionSnapshotData:
+      type: object
+      additionalProperties: false
+      required: [inventory, snapshot]
+      properties:
+        inventory:
+          $ref: '#/components/schemas/DNSControlInventory'
+        snapshot:
+          $ref: '#/components/schemas/DNSControlSnapshot'
+    DNSControlConnectionSnapshotResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlConnectionSnapshotData'
+    DNSControlSnapshotsData:
+      type: object
+      additionalProperties: false
+      required: [snapshots, meta]
+      properties:
+        snapshots:
+          type: array
+          items:
+            $ref: '#/components/schemas/DNSControlSnapshot'
+        meta:
+          $ref: '#/components/schemas/OffsetMeta'
+    DNSControlSnapshotsResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlSnapshotsData'
+    DNSControlSnapshotDiffData:
+      type: object
+      additionalProperties: false
+      required: [diff]
+      properties:
+        diff:
+          $ref: '#/components/schemas/DNSControlSnapshotDiff'
+    DNSControlSnapshotDiffResponse:
+      type: object
+      additionalProperties: false
+      required: [status, data]
+      properties:
+        status:
+          type: string
+          enum: [success]
+        data:
+          $ref: '#/components/schemas/DNSControlSnapshotDiffData'
