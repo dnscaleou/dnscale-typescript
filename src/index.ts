@@ -36,6 +36,17 @@ function envelope<T>(result: { data?: { status: "success"; data: T } }): T {
   return result.data.data;
 }
 
+function resource<T extends { id: string }>(value: T | undefined): T {
+  if (!value || typeof value.id !== "string" || !value.id) {
+    throw new ProtocolError("DNScale returned a resource without an ID");
+  }
+  return value;
+}
+
+function deleted(result: { response: Response }): void {
+  if (result.response.status !== 204) throw new ProtocolError("Expected HTTP 204 after deletion");
+}
+
 function nextOffset(page: Pagination, offset: number, count: number): number | undefined {
   if (!page || page.offset !== offset || page.count !== count || typeof page.has_more !== "boolean") {
     throw new ProtocolError("DNScale returned inconsistent pagination metadata");
@@ -75,20 +86,20 @@ export class Zones {
     }
   }
   async get(zoneId: string, options: RequestOptions = {}): Promise<Zone> {
-    return envelope(await this.api.GET("/zones/{zone_id}", {
+    return resource(envelope(await this.api.GET("/zones/{zone_id}", {
       params: { path: { zone_id: zoneId } }, ...options,
-    })).zone;
+    })).zone);
   }
   async create(body: CreateZone, options: RequestOptions = {}): Promise<Zone> {
-    return envelope(await this.api.POST("/zones", { body, ...options })).zone;
+    return resource(envelope(await this.api.POST("/zones", { body, ...options })).zone);
   }
   async update(zoneId: string, body: UpdateZone, options: RequestOptions = {}): Promise<Zone> {
-    return envelope(await this.api.PUT("/zones/{zone_id}", {
+    return resource(envelope(await this.api.PUT("/zones/{zone_id}", {
       params: { path: { zone_id: zoneId } }, body, ...options,
-    })).zone;
+    })).zone);
   }
   async delete(zoneId: string, options: RequestOptions = {}): Promise<void> {
-    await this.api.DELETE("/zones/{zone_id}", { params: { path: { zone_id: zoneId } }, ...options });
+    deleted(await this.api.DELETE("/zones/{zone_id}", { params: { path: { zone_id: zoneId } }, ...options }));
   }
 }
 
@@ -114,41 +125,41 @@ export class Records {
     }
   }
   async get(zoneId: string, recordId: string, options: RequestOptions = {}): Promise<Record> {
-    return envelope(await this.api.GET("/zones/{zone_id}/records/{record_id}", {
+    return resource(envelope(await this.api.GET("/zones/{zone_id}/records/{record_id}", {
       params: { path: { zone_id: zoneId, record_id: recordId } }, ...options,
-    })).record;
+    })).record);
   }
   async create(zoneId: string, body: CreateRecord, options: RequestOptions = {}): Promise<Record> {
-    return envelope(await this.api.POST("/zones/{zone_id}/records", {
+    return resource(envelope(await this.api.POST("/zones/{zone_id}/records", {
       params: { path: { zone_id: zoneId } }, body, ...options,
-    })).record;
+    })).record);
   }
   async update(zoneId: string, recordId: string, body: CreateRecord, options: RequestOptions = {}): Promise<Record> {
-    return envelope(await this.api.PUT("/zones/{zone_id}/records/{record_id}", {
+    return resource(envelope(await this.api.PUT("/zones/{zone_id}/records/{record_id}", {
       params: { path: { zone_id: zoneId, record_id: recordId } }, body, ...options,
-    })).record;
+    })).record);
   }
   async delete(zoneId: string, recordId: string, options: RequestOptions = {}): Promise<void> {
-    await this.api.DELETE("/zones/{zone_id}/records/{record_id}", {
+    deleted(await this.api.DELETE("/zones/{zone_id}/records/{record_id}", {
       params: { path: { zone_id: zoneId, record_id: recordId } }, ...options,
-    });
+    }));
   }
   async updateByName(zoneId: string, name: string, type: RecordType, body: UpdateRecordByName,
     options: RequestOptions & { content?: string } = {}): Promise<Record> {
-    return envelope(await this.api.PUT("/zones/{zone_id}/records/by-name/{record_name}/{record_type}", {
+    return resource(envelope(await this.api.PUT("/zones/{zone_id}/records/by-name/{record_name}/{record_type}", {
       params: { path: { zone_id: zoneId, record_name: name, record_type: type },
         query: options.content === undefined ? {} : { content: options.content } },
       body, ...(options.signal ? { signal: options.signal } : {}),
-    })).record;
+    })).record);
   }
   async deleteByName(zoneId: string, name: string, type: RecordType,
     options: RequestOptions & { content?: string } = {}): Promise<void> {
     if (options.content === "") throw new TypeError("content must be non-empty; omit it to delete the whole RRset");
-    await this.api.DELETE("/zones/{zone_id}/records/by-name/{record_name}/{record_type}", {
+    deleted(await this.api.DELETE("/zones/{zone_id}/records/by-name/{record_name}/{record_type}", {
       params: { path: { zone_id: zoneId, record_name: name, record_type: type },
         query: options.content === undefined ? {} : { content: options.content } },
       ...(options.signal ? { signal: options.signal } : {}),
-    });
+    }));
   }
 }
 

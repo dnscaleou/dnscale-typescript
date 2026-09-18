@@ -149,3 +149,10 @@ test("typed low-level API reaches endpoints beyond zone and record helpers", asy
   }});
   assert.equal((await dns.api.GET("/usage/current")).data.data.marker, "usage");
 });
+
+test("helpers reject success envelopes missing a resource or deletion status", async () => {
+  const dns = new DNScale({ apiKey: "test", fetch: async () => response({}) });
+  await assert.rejects(dns.zones.get(zoneId), ProtocolError);
+  await assert.rejects(dns.records.get(zoneId, "record"), ProtocolError);
+  await assert.rejects(dns.zones.delete(zoneId), ProtocolError);
+});
