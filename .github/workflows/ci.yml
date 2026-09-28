@@ -24,4 +24,4 @@ jobs:
           sdk_temp="$(mktemp -d)"
           cd "$sdk_temp"
           npm install "$sdk_tarball"
-          node --input-type=module -e 'import { DNScale } from "@dnscale/sdk"; new DNScale({apiKey:"package-test"})'
+          node --input-type=module -e 'import { DNScale } from "@dnscale/dnscale"; new DNScale({apiKey:"package-test"})'

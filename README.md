@@ -7,7 +7,7 @@ and uses ESM.
 ## Installation
 
 ```bash
-npm install @dnscale/sdk
+npm install @dnscale/dnscale
 ```
 
 ## Quick start
@@ -16,7 +16,7 @@ Create an API key in the DNScale dashboard and supply it through `DNSCALE_API_KE
 or the client's `apiKey` option.
 
 ```ts
-import { DNScale } from "@dnscale/sdk";
+import { DNScale } from "@dnscale/dnscale";
 
 const dns = new DNScale(); // reads DNSCALE_API_KEY
 for await (const zone of dns.zones.iter()) {

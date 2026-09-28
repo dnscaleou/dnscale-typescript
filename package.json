@@ -1,5 +1,5 @@
 {
-  "name": "@dnscale/sdk",
+  "name": "@dnscale/dnscale",
   "version": "0.1.0",
   "description": "Official TypeScript SDK for the DNScale API",
   "type": "module",
