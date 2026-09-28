@@ -1,6 +1,6 @@
 {
   "name": "@dnscale/dnscale",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Official TypeScript SDK for the DNScale API",
   "type": "module",
   "main": "./dist/index.js",

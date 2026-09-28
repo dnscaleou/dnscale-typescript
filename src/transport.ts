@@ -43,7 +43,7 @@ export function createTransport(options: TransportOptions): (request: Request) =
     const headers = new Headers(input.headers);
     headers.set("Authorization", `Bearer ${options.apiKey}`);
     headers.set("Accept", "application/json");
-    headers.set("User-Agent", "dnscale-typescript/0.1.0");
+    headers.set("User-Agent", "dnscale-typescript/1.0.0");
     const signal = AbortSignal.any([input.signal, AbortSignal.timeout(options.timeoutMs)]);
     const request = new Request(input, { headers, signal, redirect: "error" });
     const safe = safeMethods.has(request.method);

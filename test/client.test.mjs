@@ -16,7 +16,7 @@ test("zone CRUD uses versioned routes, bearer authentication, and envelopes", as
   const seen = [];
   const dns = new DNScale({ apiKey: "test", fetch: async (request) => {
     assert.equal(request.headers.get("Authorization"), "Bearer test");
-    assert.equal(request.headers.get("User-Agent"), "dnscale-typescript/0.1.0");
+    assert.equal(request.headers.get("User-Agent"), "dnscale-typescript/1.0.0");
     assert.equal(request.redirect, "error");
     assert.match(request.url, /^https:\/\/api.dnscale.eu\/v1\/zones/);
     seen.push(request.method);
